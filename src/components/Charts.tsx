@@ -101,7 +101,7 @@ export default function Charts({ records, settings }: { records: AssetRecord[]; 
     type: "pie" as const, hole: 0.5,
     marker: { colors: COLORS },
     textinfo: "label+percent" as const,
-    textfont: { family: "JetBrains Mono", size: 10 },
+    textfont: { family: "JetBrains Mono", size: 10, color: "#4a6568" },
     hoverinfo: "label+value" as const,
   };
 
