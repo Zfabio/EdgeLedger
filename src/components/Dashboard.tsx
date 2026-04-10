@@ -4,11 +4,12 @@ import { useAuth } from "@/context/AuthContext";
 import { LogOut, Plus, Download, Settings, Upload } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import Logo from "@/components/Logo";
-import { AssetRecord, getAssetRecords, saveBatchAssetRecords } from "@/lib/services";
+import { AssetRecord, getAssetRecords } from "@/lib/services";
 import { getSettings, AppSettings } from "@/lib/settings";
 import DataEntryForm from "./DataEntryForm";
 import SettingsPanel from "./SettingsPanel";
 import Charts from "./Charts";
+import ImportWizard from "./ImportWizard";
 import Papa from "papaparse";
 
 export function Dashboard() {
@@ -18,6 +19,7 @@ export function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AssetRecord | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [importData, setImportData] = useState<{ headers: string[]; rows: any[] } | null>(null);
   const [now] = useState(new Date().toISOString().replace("T", " ").slice(0, 19));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,22 +48,13 @@ export function Dashboard() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const imported: AssetRecord[] = results.data.map((row: any) => {
-          const month = row.month;
-          if (!month) return null;
-          const vals: Record<string, number> = {};
-          settings.categories.forEach(c => {
-            if (row[c] !== undefined) vals[c] = Number(row[c]) || 0;
+        if (results.meta.fields && results.data.length > 0) {
+          setImportData({ 
+            headers: results.meta.fields, 
+            rows: results.data 
           });
-          return { month, values: vals } as AssetRecord;
-        }).filter(r => r !== null) as AssetRecord[];
-
-        if (imported.length > 0) {
-          saveBatchAssetRecords(imported);
-          fetchAll();
-          alert(`SUCCESS: ${imported.length} RECORDS_IMPORTED`);
         } else {
-          alert("ERR: NO_VALID_RECORDS_FOUND");
+          alert("ERR: EMPTY_OR_MALFORMED_CSV");
         }
         if (fileInputRef.current) fileInputRef.current.value = "";
       },
@@ -150,6 +143,14 @@ export function Dashboard() {
       {showSettings && (
         <SettingsPanel
           onClose={() => { setShowSettings(false); fetchAll(); }}
+        />
+      )}
+      {importData && (
+        <ImportWizard
+          data={importData}
+          settings={settings}
+          onClose={() => setImportData(null)}
+          onSuccess={() => { setImportData(null); fetchAll(); }}
         />
       )}
     </div>
