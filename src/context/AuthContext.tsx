@@ -1,60 +1,70 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { validateConnection } from "@/lib/services";
+
+const PASSWORD_KEY = "edgeledger_auth";
+const PASS_HASH_KEY = "edgeledger_passhash";
 
 interface AuthContextType {
-  token: string | null;
-  gistId: string | null;
+  isAuthenticated: boolean;
   loading: boolean;
-  login: (t: string, g: string) => Promise<boolean>;
+  hasPassword: boolean;
+  login: (password: string) => boolean;
+  setPassword: (password: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
+// Simple hash function (not cryptographic, but good enough for local protection)
+const hashPassword = (pass: string): string => {
+  let hash = 0;
+  for (let i = 0; i < pass.length; i++) {
+    const char = pass.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return String(hash);
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
-  const [gistId, setGistId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasPassword, setHasPassword] = useState(false);
 
   useEffect(() => {
-    // Check local storage for existing credentials when the app loads
-    const savedToken = localStorage.getItem("fintrack_gh_token");
-    const savedGist = localStorage.getItem("fintrack_gist_id");
-    
-    if (savedToken && savedGist) {
-      setToken(savedToken);
-      setGistId(savedGist);
-    }
+    const authed = sessionStorage.getItem(PASSWORD_KEY) === "true";
+    const stored = localStorage.getItem(PASS_HASH_KEY);
+    setIsAuthenticated(authed);
+    setHasPassword(!!stored);
     setLoading(false);
   }, []);
 
-  const login = async (newToken: string, newGist: string) => {
-    try {
-      // Test the connection before saving it locally
-      await validateConnection(newToken, newGist);
-      
-      localStorage.setItem("fintrack_gh_token", newToken);
-      localStorage.setItem("fintrack_gist_id", newGist);
-      setToken(newToken);
-      setGistId(newGist);
+  const login = (password: string): boolean => {
+    const stored = localStorage.getItem(PASS_HASH_KEY);
+    if (!stored) return false;
+    if (hashPassword(password) === stored) {
+      sessionStorage.setItem(PASSWORD_KEY, "true");
+      setIsAuthenticated(true);
       return true;
-    } catch (error) {
-      console.error("Login failed:", error);
-      return false;
     }
+    return false;
+  };
+
+  const setPassword = (password: string) => {
+    localStorage.setItem(PASS_HASH_KEY, hashPassword(password));
+    sessionStorage.setItem(PASSWORD_KEY, "true");
+    setHasPassword(true);
+    setIsAuthenticated(true);
   };
 
   const logout = () => {
-    localStorage.removeItem("fintrack_gh_token");
-    localStorage.removeItem("fintrack_gist_id");
-    setToken(null);
-    setGistId(null);
+    sessionStorage.removeItem(PASSWORD_KEY);
+    setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ token, gistId, loading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, loading, hasPassword, login, setPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );
