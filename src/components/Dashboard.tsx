@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { LogOut, Plus, Download, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { AssetRecord, getAssetRecords } from "@/lib/services";
 import { getSettings, AppSettings } from "@/lib/settings";
 import DataEntryForm from "./DataEntryForm";
@@ -45,7 +46,7 @@ export function Dashboard() {
       {/* Top bar */}
       <header style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", padding: "0.6rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span className="glow-green" style={{ fontSize: "1rem", fontWeight: 700, letterSpacing: "0.05em" }}>EDGE_LEDGER</span>
+          <Image src="/logo.png" alt="EdgeLedger" width={120} height={32} style={{ objectFit: "contain", imageRendering: "pixelated" }} />
           <span className="term-tag">v1.0</span>
           <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>{now}</span>
         </div>

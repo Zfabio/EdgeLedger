@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { Dashboard } from "@/components/Dashboard";
 import { useState } from "react";
+import Image from "next/image";
 
 export default function Home() {
   const { isAuthenticated, loading, hasPassword, login, setPassword } = useAuth();
@@ -38,18 +39,11 @@ export default function Home() {
     <main className="flex items-center justify-center min-h-screen p-6">
       <div style={{ width: "100%", maxWidth: "440px" }}>
         {/* Header */}
-        <div className="mb-8">
-          <div className="glow-green text-xs mb-2" style={{ color: "var(--muted)" }}>
-            EDGELEDGER v1.0.0 // SECURE TERMINAL
+        <div className="mb-8" style={{ textAlign: "center" }}>
+          <div style={{ color: "var(--muted)", fontSize: "0.65rem", marginBottom: "1rem", letterSpacing: "0.1em" }}>
+            // SECURE TERMINAL v1.0.0
           </div>
-          <pre className="glow-green text-xl font-bold leading-tight" style={{ letterSpacing: "-0.02em" }}>
-{`███████╗██╗
-██╔════╝██║
-█████╗  ██║
-██╔══╝  ██║
-███████╗███████╗
-╚══════╝╚══════╝`}
-          </pre>
+          <Image src="/logo.png" alt="EdgeLedger" width={220} height={60} style={{ objectFit: "contain", imageRendering: "pixelated", margin: "0 auto", filter: "drop-shadow(0 0 12px rgba(57,255,20,0.4))" }} />
           <div className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
             {hasPassword ? (
               <><span style={{ color: "var(--green)" }}>[LOCKED]</span> — Enter passphrase to authenticate</>
