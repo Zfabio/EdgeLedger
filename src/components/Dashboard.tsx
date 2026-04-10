@@ -1,10 +1,10 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, Plus, Download, Settings } from "lucide-react";
-import { useEffect, useState } from "react";
+import { LogOut, Plus, Download, Settings, Upload } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import Logo from "@/components/Logo";
-import { AssetRecord, getAssetRecords } from "@/lib/services";
+import { AssetRecord, getAssetRecords, saveBatchAssetRecords } from "@/lib/services";
 import { getSettings, AppSettings } from "@/lib/settings";
 import DataEntryForm from "./DataEntryForm";
 import SettingsPanel from "./SettingsPanel";
@@ -19,6 +19,7 @@ export function Dashboard() {
   const [editingRecord, setEditingRecord] = useState<AssetRecord | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [now] = useState(new Date().toISOString().replace("T", " ").slice(0, 19));
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAll = () => {
     setRecords(getAssetRecords());
@@ -35,6 +36,37 @@ export function Dashboard() {
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingRecord(null);
+  };
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const imported: AssetRecord[] = results.data.map((row: any) => {
+          const month = row.month;
+          if (!month) return null;
+          const vals: Record<string, number> = {};
+          settings.categories.forEach(c => {
+            if (row[c] !== undefined) vals[c] = Number(row[c]) || 0;
+          });
+          return { month, values: vals } as AssetRecord;
+        }).filter(r => r !== null) as AssetRecord[];
+
+        if (imported.length > 0) {
+          saveBatchAssetRecords(imported);
+          fetchAll();
+          alert(`SUCCESS: ${imported.length} RECORDS_IMPORTED`);
+        } else {
+          alert("ERR: NO_VALID_RECORDS_FOUND");
+        }
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      },
+      error: () => alert("ERR: CSV_PARSING_FAILURE")
+    });
   };
 
   const handleExportCSV = () => {
@@ -64,6 +96,16 @@ export function Dashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button onClick={() => setShowSettings(true)} className="t-btn">
             <Settings size={12} /> <span className="hide-mobile">CONFIG</span>
+          </button>
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            onChange={handleImportCSV}
+            style={{ display: "none" }}
+          />
+          <button onClick={() => fileInputRef.current?.click()} className="t-btn">
+            <Upload size={12} /> <span className="hide-mobile">IMPORT</span>
           </button>
           <button onClick={handleExportCSV} className="t-btn">
             <Download size={12} /> <span className="hide-mobile">EXPORT</span>

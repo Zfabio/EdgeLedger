@@ -38,3 +38,17 @@ export const updateAssetRecord = (id: string, month: string, values: Record<stri
   const updated = existing.map(r => r.id === id ? { ...r, month, values, total } : r);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 };
+
+export const saveBatchAssetRecords = (newRecords: AssetRecord[]): void => {
+  const existing = getAssetRecords();
+  const recordsMap = new Map(existing.map(r => [r.month, r]));
+  
+  newRecords.forEach(nr => {
+    const total = Object.values(nr.values).reduce((sum, v) => sum + v, 0);
+    const id = recordsMap.get(nr.month)?.id || crypto.randomUUID();
+    recordsMap.set(nr.month, { ...nr, id, total });
+  });
+
+  const updated = Array.from(recordsMap.values()).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+};
