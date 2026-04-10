@@ -1,11 +1,7 @@
 export interface AssetRecord {
   id?: string;
   month: string; // YYYY-MM
-  stocks: number;
-  crypto: number;
-  cash: number;
-  realEstate: number;
-  other: number;
+  values: Record<string, number>; // { "Stocks": 1000, "Crypto": 500, ... }
   total?: number;
 }
 
@@ -23,13 +19,10 @@ export const getAssetRecords = (): AssetRecord[] => {
   }
 };
 
-export const addAssetRecord = (record: Omit<AssetRecord, "id" | "total">): AssetRecord => {
+export const addAssetRecord = (month: string, values: Record<string, number>): AssetRecord => {
   const existing = getAssetRecords();
-  const newRecord: AssetRecord = {
-    ...record,
-    id: crypto.randomUUID(),
-    total: record.stocks + record.crypto + record.cash + record.realEstate + record.other,
-  };
+  const total = Object.values(values).reduce((sum, v) => sum + v, 0);
+  const newRecord: AssetRecord = { id: crypto.randomUUID(), month, values, total };
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...existing, newRecord]));
   return newRecord;
 };

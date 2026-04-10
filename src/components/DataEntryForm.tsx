@@ -2,95 +2,72 @@
 
 import { useState } from "react";
 import { addAssetRecord } from "@/lib/services";
-import { X, Server } from "lucide-react";
+import { getSettings } from "@/lib/settings";
+import { X } from "lucide-react";
 
-export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    month: new Date().toISOString().slice(0, 7),
-    stocks: "",
-    crypto: "",
-    cash: "",
-    realEstate: "",
-    other: "",
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const settings = getSettings();
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [values, setValues] = useState<Record<string, string>>(
+    Object.fromEntries(settings.categories.map(c => [c, ""]))
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      addAssetRecord({
-        month: formData.month,
-        stocks: Number(formData.stocks) || 0,
-        crypto: Number(formData.crypto) || 0,
-        cash: Number(formData.cash) || 0,
-        realEstate: Number(formData.realEstate) || 0,
-        other: Number(formData.other) || 0,
-      });
-      onSuccess();
-    } catch (error) {
-      console.error("Error adding record", error);
-      alert("Failed to save record.");
-    } finally {
-      setLoading(false);
-    }
+    const numericValues = Object.fromEntries(
+      Object.entries(values).map(([k, v]) => [k, Number(v) || 0])
+    );
+    addAssetRecord(month, numericValues);
+    onSuccess();
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-slate-800">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <Server className="w-5 h-5 text-blue-500" />
-            Add Monthly Snapshot
-          </h3>
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+      <div className="term-panel" style={{ width: "100%", maxWidth: "480px" }}>
+        <div className="term-panel-header" style={{ justifyContent: "space-between" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div className="dot" />
+            NEW_RECORD.JSON
+          </span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: "0" }}>
+            <X size={14} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Month</label>
+            <div className="prompt text-xs mb-1" style={{ color: "var(--muted)" }}>month</div>
             <input
               type="month"
-              name="month"
-              value={formData.month}
-              onChange={handleChange}
               required
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              value={month}
+              onChange={e => setMonth(e.target.value)}
+              className="term-input"
+              style={{ width: "100%" }}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {(["stocks", "crypto", "cash", "realEstate", "other"] as const).map((field) => (
-              <div key={field} className={field === "other" ? "col-span-2" : ""}>
-                <label className="block text-sm font-medium text-slate-300 mb-1 capitalize">
-                  {field === "realEstate" ? "Real Estate ($)" : `${field.charAt(0).toUpperCase() + field.slice(1)} ($)`}
-                </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            {settings.categories.map(cat => (
+              <div key={cat} style={{ gridColumn: settings.categories.length % 2 !== 0 && cat === settings.categories[settings.categories.length - 1] ? "span 2" : undefined }}>
+                <div className="prompt text-xs mb-1" style={{ color: "var(--muted)" }}>
+                  {cat.toLowerCase()} ({settings.currency.symbol})
+                </div>
                 <input
                   type="number"
-                  name={field}
-                  value={formData[field]}
-                  onChange={handleChange}
+                  value={values[cat] || ""}
+                  onChange={e => setValues(prev => ({ ...prev, [cat]: e.target.value }))}
                   placeholder="0.00"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
+                  className="term-input"
+                  style={{ width: "100%" }}
                 />
               </div>
             ))}
           </div>
 
-          <div className="mt-2 flex gap-3 justify-end">
-            <button type="button" onClick={onClose} disabled={loading} className="py-2 px-4 rounded-lg font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium transition-colors disabled:opacity-50">
-              {loading ? "Saving..." : "Save Record"}
-            </button>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.5rem" }}>
+            <button type="button" onClick={onClose} className="term-btn">CANCEL</button>
+            <button type="submit" className="term-btn primary">$ COMMIT RECORD</button>
           </div>
         </form>
       </div>

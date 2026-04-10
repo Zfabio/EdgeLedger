@@ -1,96 +1,100 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, Plus, Download } from "lucide-react";
+import { LogOut, Plus, Download, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AssetRecord, getAssetRecords } from "@/lib/services";
+import { getSettings, AppSettings } from "@/lib/settings";
 import DataEntryForm from "./DataEntryForm";
+import SettingsPanel from "./SettingsPanel";
 import Charts from "./Charts";
 import Papa from "papaparse";
 
 export function Dashboard() {
   const { logout } = useAuth();
   const [records, setRecords] = useState<AssetRecord[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [showForm, setShowForm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [now] = useState(new Date().toISOString().replace("T", " ").slice(0, 19));
 
-  const fetchRecords = () => {
-    const data = getAssetRecords();
-    setRecords(data);
+  const fetchAll = () => {
+    setRecords(getAssetRecords());
+    setSettings(getSettings());
   };
 
-  useEffect(() => {
-    fetchRecords();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
 
   const handleExportCSV = () => {
-    const csv = Papa.unparse(records.map(({ id, ...rest }) => rest));
+    const csv = Papa.unparse(records.map(r => ({
+      month: r.month,
+      ...Object.fromEntries(settings.categories.map(c => [c, r.values?.[c] || 0])),
+      total: r.total
+    })));
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "edgeledger_data.csv");
+    link.setAttribute("download", `edgeledger_${settings.currency.code}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="bg-slate-800 border-b border-slate-700 p-4 shrink-0 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">
-            E
-          </div>
-          <h1 className="text-xl font-bold">EdgeLedger</h1>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Top bar */}
+      <header style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", padding: "0.6rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span className="glow-green" style={{ fontSize: "1rem", fontWeight: 700, letterSpacing: "0.05em" }}>EDGE_LEDGER</span>
+          <span className="term-tag">v1.0</span>
+          <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>{now}</span>
         </div>
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Lock
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <button onClick={() => { setShowSettings(true); }} className="term-btn" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
+            <Settings size={12} /> CONFIG
+          </button>
+          <button onClick={handleExportCSV} className="term-btn" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
+            <Download size={12} /> EXPORT
+          </button>
+          <button onClick={() => setShowForm(true)} className="term-btn primary" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
+            <Plus size={12} /> NEW_RECORD
+          </button>
+          <button onClick={logout} className="term-btn danger" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
+            <LogOut size={12} /> LOCK
+          </button>
+        </div>
       </header>
 
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto w-full max-w-7xl mx-auto flex flex-col gap-8">
-        <div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-          <div>
-            <h2 className="text-2xl font-bold">Portfolio Overview</h2>
-            <p className="text-slate-400 text-sm">Visualize your wealth growth</p>
-          </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button
-              onClick={handleExportCSV}
-              className="flex-1 sm:flex-none flex justify-center items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white py-2 px-4 rounded-lg font-medium border border-slate-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex-1 sm:flex-none flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors shadow-[0_0_15px_rgba(37,99,235,0.5)]"
-            >
-              <Plus className="w-4 h-4" />
-              Add Data
-            </button>
-          </div>
-        </div>
+      {/* Shell info bar */}
+      <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "0.35rem 1.25rem", display: "flex", gap: "1.5rem", fontSize: "0.65rem", color: "var(--muted)" }}>
+        <span><span style={{ color: "var(--green-text)" }}>currency:</span> {settings.currency.symbol} {settings.currency.code}</span>
+        <span><span style={{ color: "var(--green-text)" }}>categories:</span> {settings.categories.length}</span>
+        <span><span style={{ color: "var(--green-text)" }}>records:</span> {records.length}</span>
+        <span className="cursor" />
+      </div>
 
+      {/* Main */}
+      <main style={{ flex: 1, padding: "1.25rem", maxWidth: "1400px", margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
         {records.length === 0 ? (
-          <div className="text-center py-20 text-slate-400 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            <p className="mb-4">No financial data found.</p>
-            <button onClick={() => setShowForm(true)} className="text-blue-500 hover:text-blue-400 font-medium underline">
-              Add your first record
-            </button>
+          <div style={{ textAlign: "center", padding: "5rem 1rem", color: "var(--muted)", border: "1px solid var(--border)", borderRadius: "4px" }}>
+            <div className="glow-green text-lg mb-3">$ ls records/</div>
+            <div style={{ marginBottom: "1rem", fontSize: "0.85rem" }}>No records found. Initialize your first entry.</div>
+            <button onClick={() => setShowForm(true)} className="term-btn primary">$ init new_record</button>
           </div>
         ) : (
-          <Charts records={records} />
+          <Charts records={records} settings={settings} />
         )}
       </main>
 
       {showForm && (
         <DataEntryForm
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); fetchRecords(); }}
+          onSuccess={() => { setShowForm(false); fetchAll(); }}
+        />
+      )}
+      {showSettings && (
+        <SettingsPanel
+          onClose={() => { setShowSettings(false); fetchAll(); }}
         />
       )}
     </div>

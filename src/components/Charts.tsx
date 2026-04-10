@@ -3,176 +3,169 @@
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
 import { AssetRecord } from "@/lib/services";
+import { AppSettings } from "@/lib/settings";
 import * as ss from "simple-statistics";
-import { TrendingUp, PieChart as PieChartIcon, BarChart2 } from "lucide-react";
 
-// Dynamically import Plotly to avoid SSR issues
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
-export default function Charts({ records }: { records: AssetRecord[] }) {
-  const { lineData, pieData, barData, forecastData } = useMemo(() => {
-    if (!records || records.length === 0) {
-      return { lineData: [], pieData: [], barData: [], forecastData: null };
-    }
+const COLORS = ["#39ff14", "#22d3ee", "#fbbf24", "#f87171", "#a78bfa", "#34d399", "#fb7185", "#818cf8"];
 
-    const sortedRecords = [...records].sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
-    const x = sortedRecords.map((r) => r.month);
-    const yTotal = sortedRecords.map((r) => r.total || 0);
+const layout = {
+  paper_bgcolor: "transparent",
+  plot_bgcolor: "transparent",
+  font: { color: "#4a6568", family: "JetBrains Mono, monospace", size: 11 },
+  margin: { t: 20, r: 20, l: 55, b: 50 },
+  xaxis: { gridcolor: "#1e2d30", zerolinecolor: "#1e2d30", tickfont: { color: "#3d5a5e" } },
+  yaxis: { gridcolor: "#1e2d30", zerolinecolor: "#1e2d30", tickfont: { color: "#3d5a5e" } },
+  legend: { orientation: "h" as const, y: -0.25, font: { color: "#4a6568" } },
+  autosize: true,
+};
 
-    const lineData = [
-      {
-        x,
-        y: yTotal,
-        type: "scatter" as const,
-        mode: "lines+markers" as const,
-        name: "Total Net Worth",
-        line: { color: "#3b82f6", width: 3, shape: "spline" as const },
-        marker: { size: 8, color: "#2563eb" },
-        fill: "tozeroy" as const,
-        fillcolor: "rgba(59, 130, 246, 0.1)",
-      },
-    ];
+export default function Charts({ records, settings }: { records: AssetRecord[]; settings: AppSettings }) {
+  const { sym } = useMemo(() => ({ sym: settings.currency.symbol }), [settings]);
 
-    const latest = sortedRecords[sortedRecords.length - 1];
-    const pieData = [
-      {
-        values: [latest.stocks, latest.crypto, latest.cash, latest.realEstate, latest.other],
-        labels: ["Stocks", "Crypto", "Cash", "Real Estate", "Other"],
-        type: "pie" as const,
-        hole: 0.4,
-        marker: { 
-          colors: ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#64748b"] 
-        },
-        textinfo: "label+percent" as const,
-        hoverinfo: "label+value" as const,
-      },
-    ];
+  const x = records.map(r => r.month);
+  const totals = records.map(r => r.total || 0);
 
-    const barData = [
-      { x, y: sortedRecords.map(r => r.stocks), type: "bar" as const, name: "Stocks", marker: { color: "#3b82f6" } },
-      { x, y: sortedRecords.map(r => r.crypto), type: "bar" as const, name: "Crypto", marker: { color: "#8b5cf6" } },
-      { x, y: sortedRecords.map(r => r.cash), type: "bar" as const, name: "Cash", marker: { color: "#10b981" } },
-      { x, y: sortedRecords.map(r => r.realEstate), type: "bar" as const, name: "Real Estate", marker: { color: "#f59e0b" } },
-      { x, y: sortedRecords.map(r => r.other), type: "bar" as const, name: "Other", marker: { color: "#64748b" } },
-    ];
-
-    // Linear regression forecast mapping 'time' to 'total'
-    let forecastLine = null;
-    if (sortedRecords.length >= 2) {
-      const dataForReg = sortedRecords.map((r, idx) => [idx, r.total || 0] as [number, number]);
-      const l = ss.linearRegression(dataForReg);
-      const func = ss.linearRegressionLine(l);
-      
-      const forecastX = [];
-      const forecastY = [];
-      const numMonths = sortedRecords.length + 3; // Forecast next 3 months
-      
-      for (let i = 0; i < numMonths; i++) {
-        let label = "";
-        if (i < sortedRecords.length) {
-          label = sortedRecords[i].month;
-        } else {
-          // Estimate future month label
-          const lastDate = new Date(sortedRecords[sortedRecords.length - 1].month);
-          lastDate.setMonth(lastDate.getMonth() + (i - sortedRecords.length) + 1);
-          label = lastDate.toISOString().slice(0, 7) + " (Est)";
-        }
-        forecastX.push(label);
-        forecastY.push(func(i));
+  // Forecast
+  const forecastTrace = useMemo(() => {
+    if (records.length < 2) return null;
+    const data = records.map((_, i) => [i, records[i].total || 0] as [number, number]);
+    const reg = ss.linearRegressionLine(ss.linearRegression(data));
+    const extended = records.length + 3;
+    const fx: string[] = [];
+    const fy: number[] = [];
+    for (let i = 0; i < extended; i++) {
+      if (i < records.length) {
+        fx.push(records[i].month);
+      } else {
+        const d = new Date(records[records.length - 1].month + "-01");
+        d.setMonth(d.getMonth() + (i - records.length + 1));
+        fx.push(d.toISOString().slice(0, 7) + "~");
       }
-      
-      forecastLine = {
-        x: forecastX,
-        y: forecastY,
-        type: "scatter" as const,
-        mode: "lines" as const,
-        name: "Trend (Forecast)",
-        line: { color: "#ef4444", dash: "dashdot" as const, width: 2 },
-      };
+      fy.push(Math.max(0, reg(i)));
     }
-
-    const finalLineData = forecastLine ? [...lineData, forecastLine] : lineData;
-
-    return { lineData: finalLineData, pieData, barData, forecastData: forecastLine };
+    return { x: fx, y: fy, type: "scatter" as const, mode: "lines" as const, name: "FORECAST", line: { color: "#f87171", dash: "dot" as const, width: 1.5 } };
   }, [records]);
 
-  const layoutBase = {
-    paper_bgcolor: "transparent",
-    plot_bgcolor: "transparent",
-    font: { color: "#94a3b8", family: "inherit" },
-    margin: { t: 30, r: 20, l: 50, b: 40 },
-    xaxis: { gridcolor: "#334155", zerolinecolor: "#334155" },
-    yaxis: { gridcolor: "#334155", zerolinecolor: "#334155" },
-    legend: { orientation: "h" as const, y: -0.2 },
-    autosize: true,
+  // Net worth line
+  const lineTrace = {
+    x, y: totals, type: "scatter" as const, mode: "lines+markers" as const,
+    name: "NET_WORTH", line: { color: "#39ff14", width: 2, shape: "spline" as const },
+    marker: { size: 6, color: "#1a7a08" },
+    fill: "tozeroy" as const, fillcolor: "rgba(57,255,20,0.05)",
   };
 
+  // Category bar traces
+  const cats = settings.categories;
+  const barTraces = cats.map((cat, i) => ({
+    x,
+    y: records.map(r => r.values?.[cat] || 0),
+    type: "bar" as const,
+    name: cat.toUpperCase(),
+    marker: { color: COLORS[i % COLORS.length], opacity: 0.8 },
+  }));
+
+  // Pie (latest record)
+  const latest = records[records.length - 1];
+  const pieTrace = {
+    values: cats.map(c => latest?.values?.[c] || 0),
+    labels: cats.map(c => c.toUpperCase()),
+    type: "pie" as const,
+    hole: 0.5,
+    marker: { colors: COLORS },
+    textinfo: "label+percent" as const,
+    textfont: { family: "JetBrains Mono", size: 10, color: "#0a0e0f" },
+    hoverinfo: "label+value" as const,
+  };
+
+  const totalNow = totals[totals.length - 1] || 0;
+  const totalPrev = totals.length > 1 ? totals[totals.length - 2] : totalNow;
+  const change = totalNow - totalPrev;
+  const changePct = totalPrev > 0 ? (change / totalPrev) * 100 : 0;
+
   return (
-    <div className="space-y-6">
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Net Worth Growth */}
-        <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col items-center">
-          <div className="flex items-center gap-2 mb-4 w-full">
-            <TrendingUp className="w-5 h-5 text-blue-500" />
-            <h3 className="text-lg font-semibold text-white">Net Worth Growth</h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+      {/* Stat bar */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
+        {[
+          { label: "TOTAL_NET_WORTH", value: `${sym}${totalNow.toLocaleString()}`, color: "var(--green-text)" },
+          { label: "MOM_CHANGE", value: `${change >= 0 ? "+" : ""}${sym}${change.toLocaleString()}`, color: change >= 0 ? "var(--green-text)" : "var(--red)" },
+          { label: "MOM_PCT", value: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`, color: changePct >= 0 ? "var(--green-text)" : "var(--red)" },
+        ].map(stat => (
+          <div key={stat.label} className="term-panel" style={{ padding: "0.75rem 1rem" }}>
+            <div style={{ fontSize: "0.65rem", color: "var(--muted)", letterSpacing: "0.08em", marginBottom: "0.3rem" }}>{stat.label}</div>
+            <div style={{ fontSize: "1.1rem", color: stat.color, fontWeight: 600 }}>{stat.value}</div>
           </div>
-          <div className="w-full relative h-[350px]">
-             {lineData.length > 0 && (
-              <Plot
-                data={lineData}
-                layout={{ ...layoutBase, hovermode: "x unified" }}
-                useResizeHandler={true}
-                className="w-full h-full"
-                config={{ displayModeBar: false, responsive: true }}
-              />
-            )}
+        ))}
+      </div>
+
+      {/* Line Chart + Pie */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
+        <div className="term-panel">
+          <div className="term-panel-header"><div className="dot" />NET_WORTH.LOG</div>
+          <div style={{ height: "300px" }}>
+            <Plot data={forecastTrace ? [lineTrace, forecastTrace] : [lineTrace]}
+              layout={{ ...layout, yaxis: { ...layout.yaxis, tickprefix: sym } }}
+              useResizeHandler config={{ displayModeBar: false, responsive: true }}
+              className="w-full h-full" />
           </div>
         </div>
-
-        {/* Allocation */}
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col items-center">
-          <div className="flex items-center gap-2 mb-4 w-full">
-            <PieChartIcon className="w-5 h-5 text-purple-500" />
-            <h3 className="text-lg font-semibold text-white">Current Allocation</h3>
-          </div>
-          <div className="w-full relative h-[350px]">
-            {pieData[0]?.values?.reduce((a, b) => a + (b as number), 0) > 0 ? (
-              <Plot
-                data={pieData}
-                layout={{ ...layoutBase, margin: { t: 10, b: 10, l: 10, r: 10 }, showlegend: false }}
-                useResizeHandler={true}
-                className="w-full h-full"
-                config={{ displayModeBar: false, responsive: true }}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-slate-500 text-sm">
-                No asset data to show allocation.
-              </div>
-            )}
+        <div className="term-panel">
+          <div className="term-panel-header"><div className="dot" />ALLOCATION.PIE</div>
+          <div style={{ height: "300px" }}>
+            <Plot data={[pieTrace]}
+              layout={{ ...layout, margin: { t: 10, b: 10, l: 10, r: 10 }, showlegend: false }}
+              useResizeHandler config={{ displayModeBar: false, responsive: true }}
+              className="w-full h-full" />
           </div>
         </div>
       </div>
 
-      {/* Asset Composition Trends */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col items-center">
-        <div className="flex items-center gap-2 mb-4 w-full">
-          <BarChart2 className="w-5 h-5 text-emerald-500" />
-          <h3 className="text-lg font-semibold text-white">Asset Composition History</h3>
-        </div>
-        <div className="w-full relative h-[350px]">
-           {barData.length > 0 && (
-            <Plot
-              data={barData}
-              layout={{ ...layoutBase, barmode: "stack" }}
-              useResizeHandler={true}
-              className="w-full h-full"
-              config={{ displayModeBar: false, responsive: true }}
-            />
-          )}
+      {/* Stacked bar */}
+      <div className="term-panel">
+        <div className="term-panel-header"><div className="dot" />CATEGORY_HISTORY.BAR</div>
+        <div style={{ height: "280px" }}>
+          <Plot data={barTraces}
+            layout={{ ...layout, barmode: "stack", yaxis: { ...layout.yaxis, tickprefix: sym } }}
+            useResizeHandler config={{ displayModeBar: false, responsive: true }}
+            className="w-full h-full" />
         </div>
       </div>
 
+      {/* Data table */}
+      <div className="term-panel">
+        <div className="term-panel-header"><div className="dot" />RECORDS.TABLE</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                <th style={{ textAlign: "left", padding: "0.5rem 1rem", color: "var(--muted)", fontWeight: 400, letterSpacing: "0.08em" }}>MONTH</th>
+                {cats.map(c => <th key={c} style={{ textAlign: "right", padding: "0.5rem 0.75rem", color: "var(--muted)", fontWeight: 400, letterSpacing: "0.08em" }}>{c.toUpperCase()}</th>)}
+                <th style={{ textAlign: "right", padding: "0.5rem 1rem", color: "var(--green-text)", fontWeight: 600, letterSpacing: "0.08em" }}>TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...records].reverse().map(r => (
+                <tr key={r.id} style={{ borderBottom: "1px solid var(--border)", transition: "background 0.1s" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg3)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                  <td style={{ padding: "0.5rem 1rem", color: "var(--amber)" }}>{r.month}</td>
+                  {cats.map(c => (
+                    <td key={c} style={{ textAlign: "right", padding: "0.5rem 0.75rem", color: "var(--text)" }}>
+                      {sym}{(r.values?.[c] || 0).toLocaleString()}
+                    </td>
+                  ))}
+                  <td style={{ textAlign: "right", padding: "0.5rem 1rem", color: "var(--green-text)", fontWeight: 600 }}>
+                    {sym}{(r.total || 0).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

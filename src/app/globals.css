@@ -1,26 +1,163 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0e0f;
+  --bg2: #0f1419;
+  --bg3: #141c1e;
+  --border: #1e2d30;
+  --green: #39ff14;
+  --green-dim: #1a7a08;
+  --green-text: #4ade80;
+  --amber: #fbbf24;
+  --blue: #22d3ee;
+  --red: #f87171;
+  --muted: #3d5a5e;
+  --text: #c8d6d8;
+  --text-dim: #4a6568;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  height: 100%;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Share Tech Mono', monospace;
+  font-size: 14px;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Scanline overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Terminal cursor blink */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor::after {
+  content: '_';
+  animation: blink 1s step-end infinite;
+  color: var(--green);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
+
+/* Input style */
+.term-input {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--green-text);
+  font-family: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.term-input:focus {
+  border-color: var(--green-dim);
+  box-shadow: 0 0 8px rgba(57, 255, 20, 0.1);
+}
+
+/* Button */
+.term-btn {
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid var(--green-dim);
+  color: var(--green-text);
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 4px;
+}
+.term-btn:hover {
+  background: var(--green-dim);
+  color: #000;
+  box-shadow: 0 0 12px rgba(57, 255, 20, 0.3);
+}
+.term-btn.primary {
+  background: var(--green-dim);
+  color: #000;
+  font-weight: 600;
+}
+.term-btn.primary:hover {
+  background: var(--green);
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.5);
+}
+.term-btn.danger {
+  border-color: var(--red);
+  color: var(--red);
+}
+.term-btn.danger:hover {
+  background: var(--red);
+  color: #000;
+}
+.term-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Card panel */
+.term-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.term-panel-header {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.term-panel-header .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green-dim);
+  box-shadow: 0 0 6px var(--green);
+}
+
+/* Terminal prompt prefix */
+.prompt::before {
+  content: '> ';
+  color: var(--green);
+}
+
+/* Glow text */
+.glow-green { color: var(--green-text); text-shadow: 0 0 10px rgba(57,255,20,0.4); }
+.glow-blue { color: var(--blue); text-shadow: 0 0 10px rgba(34,211,238,0.3); }
+.glow-amber { color: var(--amber); text-shadow: 0 0 10px rgba(251,191,36,0.3); }
+
+/* Tag / badge */
+.term-tag {
+  display: inline-block;
+  border: 1px solid var(--green-dim);
+  color: var(--green-text);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 2px;
+  letter-spacing: 0.08em;
 }
