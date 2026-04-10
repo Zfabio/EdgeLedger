@@ -30,7 +30,7 @@ export default function Home() {
       setIsConnecting(true);
       const success = await login(inputToken.trim(), inputGist.trim());
       if (!success) {
-        setError("Invalid Token or Gist ID. Please ensure your token has gist permissions and the ID is correct.");
+        setError("Connection failed. Check that: (1) your token has 'gist' scope, (2) the Gist ID and token belong to the same GitHub account.");
       }
       setIsConnecting(false);
     };
