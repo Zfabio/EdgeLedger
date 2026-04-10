@@ -1,17 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { addAssetRecord } from "@/lib/services";
+import { useState, useEffect } from "react";
+import { addAssetRecord, updateAssetRecord, deleteAssetRecord, AssetRecord } from "@/lib/services";
 import { getSettings } from "@/lib/settings";
-import { X, Save, AlertCircle } from "lucide-react";
+import { X, Save, AlertCircle, Trash2 } from "lucide-react";
 
-export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+export default function DataEntryForm({ 
+  onClose, 
+  onSuccess, 
+  editRecord 
+}: { 
+  onClose: () => void; 
+  onSuccess: () => void;
+  editRecord?: AssetRecord | null;
+}) {
   const settings = getSettings();
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(settings.categories.map(c => [c, ""]))
   );
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (editRecord) {
+      setMonth(editRecord.month);
+      setValues(Object.fromEntries(
+        settings.categories.map(c => [c, String(editRecord.values?.[c] || "")])
+      ));
+    }
+  }, [editRecord, settings.categories]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,16 +39,28 @@ export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => v
     );
     
     const total = Object.values(numericValues).reduce((a, b) => a + b, 0);
-    if (total <= 0) {
+    // Allowing zero if editing (maybe they want to zero it out?), but usually should have some value
+    if (total === 0 && !editRecord) {
       setError("ERR: ENTRY_TOTAL_MUST_EXCEED_ZERO");
       return;
     }
 
     try {
-      addAssetRecord(month, numericValues);
+      if (editRecord?.id) {
+        updateAssetRecord(editRecord.id, month, numericValues);
+      } else {
+        addAssetRecord(month, numericValues);
+      }
       onSuccess();
     } catch {
       setError("ERR: FS_WRITE_FAILURE");
+    }
+  };
+
+  const handleDelete = () => {
+    if (editRecord?.id && confirm("CONFIRM_PERMANENT_DELETE?")) {
+      deleteAssetRecord(editRecord.id);
+      onSuccess();
     }
   };
 
@@ -41,7 +70,7 @@ export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => v
         <div className="panel-header" style={{ justifyContent: "space-between" }}>
           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <div className="panel-dot" />
-            INIT_NEW_RECORD.EXE
+            {editRecord ? "EDIT_RECORD_DATA" : "INIT_NEW_RECORD.EXE"}
           </span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}>
             <X size={14} />
@@ -82,11 +111,19 @@ export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => v
             </div>
           )}
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
-            <button type="button" onClick={onClose} className="t-btn">DISCARD</button>
-            <button type="submit" className="t-btn primary">
-              <Save size={12} /> $ COMMIT_RECORD
-            </button>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "10px" }}>
+            {editRecord ? (
+              <button type="button" onClick={handleDelete} className="t-btn danger" style={{ borderColor: "#6b3030" }}>
+                <Trash2 size={12} /> DELETE
+              </button>
+            ) : <div />}
+            
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button type="button" onClick={onClose} className="t-btn">DISCARD</button>
+              <button type="submit" className="t-btn primary">
+                <Save size={12} /> {editRecord ? "$ COMMIT_CHANGE" : "$ COMMIT_RECORD"}
+              </button>
+            </div>
           </div>
         </form>
       </div>

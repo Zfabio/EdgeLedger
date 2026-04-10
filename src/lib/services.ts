@@ -31,3 +31,10 @@ export const deleteAssetRecord = (id: string): void => {
   const existing = getAssetRecords();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(existing.filter(r => r.id !== id)));
 };
+
+export const updateAssetRecord = (id: string, month: string, values: Record<string, number>): void => {
+  const existing = getAssetRecords();
+  const total = Object.values(values).reduce((sum, v) => sum + v, 0);
+  const updated = existing.map(r => r.id === id ? { ...r, month, values, total } : r);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+};

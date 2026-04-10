@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { AssetRecord } from "@/lib/services";
+import { AssetRecord, deleteAssetRecord } from "@/lib/services";
 import { AppSettings } from "@/lib/settings";
 import * as ss from "simple-statistics";
+import { Edit2, Trash2 } from "lucide-react";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
-const COLORS = ["#39ff14", "#22d3ee", "#fbbf24", "#f87171", "#a78bfa", "#34d399", "#fb7185", "#818cf8"];
+// Using shades of green + one amber for highlight as requested
+const COLORS = ["#39ff14", "#32ff7e", "#2ecc71", "#27ae60", "#16a085", "#1abc9c", "#fbbf24"];
 
 const CHART_TYPES = [
   { id: "overview",   label: "OVERVIEW",    desc: "Main system summary" },
@@ -25,7 +27,7 @@ const layoutBase = (sym: string) => ({
   paper_bgcolor: "transparent",
   plot_bgcolor: "transparent",
   font: { color: "#4a6567", family: "'JetBrains Mono', monospace", size: 10 },
-  margin: { t: 20, r: 20, l: 50, b: 40 },
+  margin: { t: 10, r: 10, l: 45, b: 35 },
   xaxis: { 
     gridcolor: "#1a2c30", zerolinecolor: "#1a2c30", 
     tickfont: { color: "#3a5558" },
@@ -41,7 +43,7 @@ const layoutBase = (sym: string) => ({
   autosize: true,
 });
 
-export default function Charts({ records, settings }: { records: AssetRecord[]; settings: AppSettings }) {
+export default function Charts({ records, settings, onEditRecord, onDeleteRecord }: { records: AssetRecord[]; settings: AppSettings; onEditRecord: (r: AssetRecord) => void; onDeleteRecord: () => void }) {
   const [activeChart, setActiveChart] = useState<ChartId>("overview");
   const sym = settings.currency.symbol;
   const cats = settings.categories;
@@ -108,6 +110,13 @@ export default function Charts({ records, settings }: { records: AssetRecord[]; 
 
   const plotConfig = { displayModeBar: false, responsive: true };
 
+  const handleDelete = (id: string) => {
+    if (confirm("CONFIRM_DELETE_RECORD?")) {
+      deleteAssetRecord(id);
+      onDeleteRecord();
+    }
+  };
+
   const renderView = () => {
     const base = layoutBase(sym);
     switch (activeChart) {
@@ -115,28 +124,28 @@ export default function Charts({ records, settings }: { records: AssetRecord[]; 
         return (
           <div className="panel" style={{ height: "400px" }}>
             <div className="panel-header"><div className="panel-dot" /> TREND_ANALYSIS.LOG</div>
-            <Plot data={forecastTrace ? [lineTrace, forecastTrace] : [lineTrace]} layout={{ ...base, margin: { t: 40, r: 30, l: 60, b: 60 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
+            <Plot data={forecastTrace ? [lineTrace, forecastTrace] : [lineTrace]} layout={{ ...base, margin: { t: 30, r: 20, l: 60, b: 50 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
           </div>
         );
       case "area":
         return (
           <div className="panel" style={{ height: "400px" }}>
             <div className="panel-header"><div className="panel-dot" /> COMPOSITION_TIME_SERIES.LOG</div>
-            <Plot data={areaTraces} layout={{ ...base, margin: { t: 40, r: 30, l: 60, b: 60 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
+            <Plot data={areaTraces} layout={{ ...base, margin: { t: 30, r: 20, l: 60, b: 50 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
           </div>
         );
       case "bar":
         return (
           <div className="panel" style={{ height: "400px" }}>
             <div className="panel-header"><div className="panel-dot" /> DELTA_DISTRIBUTION.LOG</div>
-            <Plot data={barTraces} layout={{ ...base, barmode: "stack", margin: { t: 40, r: 30, l: 60, b: 60 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
+            <Plot data={barTraces} layout={{ ...base, barmode: "stack", margin: { t: 30, r: 20, l: 60, b: 50 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
           </div>
         );
       case "pie":
         return (
           <div className="panel" style={{ height: "400px" }}>
             <div className="panel-header"><div className="panel-dot" /> INSTANT_ALLOCATION.MAP</div>
-            <Plot data={[pieTrace]} layout={{ ...base, showlegend: true, margin: { t: 40, r: 40, l: 40, b: 80 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
+            <Plot data={[pieTrace]} layout={{ ...base, showlegend: true, margin: { t: 20, r: 20, l: 20, b: 60 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
           </div>
         );
       case "table":
@@ -151,7 +160,7 @@ export default function Charts({ records, settings }: { records: AssetRecord[]; 
             </div>
             <div className="panel" style={{ height: "320px" }}>
               <div className="panel-header"><div className="panel-dot" /> ALLOCATION.MAP</div>
-              <Plot data={[pieTrace]} layout={{ ...base, showlegend: true, margin: { t: 20, r: 20, l: 20, b: 60 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
+              <Plot data={[pieTrace]} layout={{ ...base, showlegend: true, margin: { t: 15, r: 15, l: 15, b: 40 } }} useResizeHandler config={plotConfig} className="w-full h-full" />
             </div>
           </div>
         );
@@ -204,6 +213,7 @@ export default function Charts({ records, settings }: { records: AssetRecord[]; 
                 <th>MONTH</th>
                 {cats.map(c => <th key={c}>{c.toUpperCase()}</th>)}
                 <th style={{ color: "var(--green-text)" }}>TOTAL</th>
+                <th style={{ textAlign: "center" }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -212,11 +222,29 @@ export default function Charts({ records, settings }: { records: AssetRecord[]; 
                   <td>{r.month}</td>
                   {cats.map(c => (
                     <td key={c}>
-                      {sym}{(r.values?.[c] || 0) > 0 ? (r.values?.[c] || 0).toLocaleString() : "0"}
+                      {sym}{(r.values?.[c] || 0).toLocaleString()}
                     </td>
                   ))}
                   <td style={{ color: "var(--green-text)", fontWeight: 600 }}>
                     {sym}{(r.total || 0).toLocaleString()}
+                  </td>
+                  <td style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
+                    <button 
+                      onClick={() => onEditRecord(r)} 
+                      className="t-btn" 
+                      style={{ padding: "2px 6px", borderColor: "var(--muted)" }}
+                      title="EDIT_RECORD"
+                    >
+                      <Edit2 size={10} />
+                    </button>
+                    <button 
+                      onClick={() => r.id && handleDelete(r.id)} 
+                      className="t-btn danger" 
+                      style={{ padding: "2px 6px" }}
+                      title="DELETE_RECORD"
+                    >
+                      <Trash2 size={10} />
+                    </button>
                   </td>
                 </tr>
               ))}

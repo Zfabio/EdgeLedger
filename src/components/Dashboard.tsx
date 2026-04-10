@@ -16,6 +16,7 @@ export function Dashboard() {
   const [records, setRecords] = useState<AssetRecord[]>([]);
   const [settings, setSettings] = useState<AppSettings>(getSettings());
   const [showForm, setShowForm] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<AssetRecord | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [now] = useState(new Date().toISOString().replace("T", " ").slice(0, 19));
 
@@ -25,6 +26,16 @@ export function Dashboard() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const handleEditRecord = (record: AssetRecord) => {
+    setEditingRecord(record);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingRecord(null);
+  };
 
   const handleExportCSV = () => {
     const csv = Papa.unparse(records.map(r => ({
@@ -57,7 +68,7 @@ export function Dashboard() {
           <button onClick={handleExportCSV} className="t-btn">
             <Download size={12} /> <span className="hide-mobile">EXPORT</span>
           </button>
-          <button onClick={() => setShowForm(true)} className="t-btn primary">
+          <button onClick={() => { setEditingRecord(null); setShowForm(true); }} className="t-btn primary">
             <Plus size={12} /> <span className="hide-mobile">NEW_RECORD</span>
           </button>
           <button onClick={logout} className="t-btn danger">
@@ -80,17 +91,18 @@ export function Dashboard() {
           <div style={{ textAlign: "center", padding: "6rem 1rem", border: "1px solid var(--border)", borderRadius: "var(--panel-radius)", background: "var(--bg2)" }}>
             <div className="glow-green text-lg mb-3" style={{ letterSpacing: "0.1em" }}>$ ls records/</div>
             <div style={{ marginBottom: "1.5rem", fontSize: "0.85rem", color: "var(--muted)" }}>No filesystem records found. System initialized.</div>
-            <button onClick={() => setShowForm(true)} className="t-btn primary" style={{ padding: "8px 16px" }}>$ init new_entry</button>
+            <button onClick={() => { setEditingRecord(null); setShowForm(true); }} className="t-btn primary" style={{ padding: "8px 16px" }}>$ init new_entry</button>
           </div>
         ) : (
-          <Charts records={records} settings={settings} />
+          <Charts records={records} settings={settings} onEditRecord={handleEditRecord} onDeleteRecord={fetchAll} />
         )}
       </main>
 
       {showForm && (
         <DataEntryForm
-          onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); fetchAll(); }}
+          editRecord={editingRecord}
+          onClose={handleCloseForm}
+          onSuccess={() => { handleCloseForm(); fetchAll(); }}
         />
       )}
       {showSettings && (
