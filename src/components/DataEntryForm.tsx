@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { addAssetRecord } from "@/lib/services";
-import { X } from "lucide-react";
+import { X, Server } from "lucide-react";
 
 export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
-  const { user } = useAuth();
+  const { token, gistId } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     month: new Date().toISOString().slice(0, 7),
@@ -23,11 +23,11 @@ export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => v
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!token || !gistId) return;
     
     setLoading(true);
     try {
-      await addAssetRecord(user.uid, {
+      await addAssetRecord(token, gistId, {
         month: formData.month,
         stocks: Number(formData.stocks) || 0,
         crypto: Number(formData.crypto) || 0,
@@ -38,17 +38,20 @@ export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => v
       onSuccess();
     } catch (error) {
       console.error("Error adding record", error);
-      alert("Failed to save record.");
+      alert("Failed to save record to your Gist.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         <div className="flex justify-between items-center p-4 border-b border-slate-800">
-          <h3 className="font-bold text-lg">Add Monthly Data</h3>
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <Server className="w-5 h-5 text-blue-500" /> 
+            Add Monthly Snapshot
+          </h3>
           <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -125,10 +128,12 @@ export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => v
             </div>
           </div>
           
-          <div className="mt-4 flex gap-3 justify-end">
+          <div className="mt-4 flex gap-3 justify-end items-center">
+            {loading && <span className="text-sm text-slate-400">Syncing to GitHub...</span>}
             <button 
               type="button" 
               onClick={onClose}
+              disabled={loading}
               className="py-2 px-4 rounded-lg font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
             >
               Cancel
@@ -138,7 +143,7 @@ export default function DataEntryForm({ onClose, onSuccess }: { onClose: () => v
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              {loading ? "Saving..." : "Save Record"}
+              Save to Gist
             </button>
           </div>
         </form>

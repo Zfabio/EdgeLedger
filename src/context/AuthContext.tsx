@@ -1,49 +1,60 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { validateConnection } from "@/lib/services";
 
 interface AuthContextType {
-  user: User | null;
+  token: string | null;
+  gistId: string | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
+  login: (t: string, g: string) => Promise<boolean>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [gistId, setGistId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+    // Check local storage for existing credentials when the app loads
+    const savedToken = localStorage.getItem("fintrack_gh_token");
+    const savedGist = localStorage.getItem("fintrack_gist_id");
+    
+    if (savedToken && savedGist) {
+      setToken(savedToken);
+      setGistId(savedGist);
+    }
+    setLoading(false);
   }, []);
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
+  const login = async (newToken: string, newGist: string) => {
     try {
-      await signInWithPopup(auth, provider);
+      // Test the connection before saving it locally
+      await validateConnection(newToken, newGist);
+      
+      localStorage.setItem("fintrack_gh_token", newToken);
+      localStorage.setItem("fintrack_gist_id", newGist);
+      setToken(newToken);
+      setGistId(newGist);
+      return true;
     } catch (error) {
-      console.error("Error signing in with Google:", error);
+      console.error("Login failed:", error);
+      return false;
     }
   };
 
-  const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
+  const logout = () => {
+    localStorage.removeItem("fintrack_gh_token");
+    localStorage.removeItem("fintrack_gist_id");
+    setToken(null);
+    setGistId(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ token, gistId, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

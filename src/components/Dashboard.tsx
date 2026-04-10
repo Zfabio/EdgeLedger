@@ -2,41 +2,41 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { LogOut, Plus, Download } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AssetRecord, getAssetRecords } from "@/lib/services";
 import DataEntryForm from "./DataEntryForm";
 import Charts from "./Charts";
 import Papa from "papaparse";
 
 export function Dashboard() {
-  const { user, logout } = useAuth();
+  const { token, gistId, logout } = useAuth();
   const [records, setRecords] = useState<AssetRecord[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchRecords = async () => {
-    if (!user) return;
+  const fetchRecords = useCallback(async () => {
+    if (!token || !gistId) return;
     setLoading(true);
     try {
-      const data = await getAssetRecords(user.uid);
+      const data = await getAssetRecords(token, gistId);
       setRecords(data);
     } catch (error) {
       console.error("Failed to fetch records", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, gistId]);
 
   useEffect(() => {
     fetchRecords();
-  }, [user]);
+  }, [fetchRecords]);
 
   const handleExportCSV = () => {
-    const csv = Papa.unparse(records.map(({ id, userId, ...rest }) => rest));
+    const csv = Papa.unparse(records.map(({ id, ...rest }) => rest));
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "financial_data.csv");
+    link.setAttribute("download", "edgeledger_data.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -48,20 +48,23 @@ export function Dashboard() {
       <header className="bg-slate-800 border-b border-slate-700 p-4 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-lg">
-            F
+            E
           </div>
           <h1 className="text-xl font-bold">EdgeLedger</h1>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-slate-300 hidden md:block">
-            {user?.email}
+          <span className="text-sm text-slate-300 hidden md:block" title={gistId || ""}>
+            Connected Gist: 
+            <span className="font-mono bg-slate-900 px-2 py-1 rounded border border-slate-700 ml-2">
+              ...{gistId?.slice(-6)}
+            </span>
           </span>
           <button
             onClick={logout}
-            className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            Logout
+            Disconnect
           </button>
         </div>
       </header>
@@ -71,7 +74,7 @@ export function Dashboard() {
         <div className="flex flex-col sm:flex-row shadow-sm justify-between gap-4 items-start sm:items-center">
           <div>
             <h2 className="text-2xl font-bold">Portfolio Overview</h2>
-            <p className="text-slate-400 text-sm">Visualize your wealth growth</p>
+            <p className="text-slate-400 text-sm">Visualize your wealth growth securely</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
@@ -98,7 +101,7 @@ export function Dashboard() {
           </div>
         ) : records.length === 0 ? (
           <div className="text-center py-20 text-slate-400 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            <p className="mb-4">No financial data found.</p>
+            <p className="mb-4">No financial data found in your Gist.</p>
             <button
               onClick={() => setShowForm(true)}
               className="text-blue-500 hover:text-blue-400 font-medium underline"
