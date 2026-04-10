@@ -3,19 +3,21 @@
 import { useAuth } from "@/context/AuthContext";
 import { Dashboard } from "@/components/Dashboard";
 import { useState } from "react";
-import Image from "next/image";
+import Logo from "@/components/Logo";
 
 export default function Home() {
   const { isAuthenticated, loading, hasPassword, login, setPassword } = useAuth();
   const [password, setPass] = useState("");
-  const [confirmPassword, setConfirmPass] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
-  const [typing, setTyping] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <span className="glow-green text-lg">INITIALIZING SYSTEM<span className="cursor" /></span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <span className="glow-green" style={{ fontSize: "0.85rem", letterSpacing: "0.15em" }}>
+          BOOTING<span className="blink">_</span>
+        </span>
       </div>
     );
   }
@@ -25,86 +27,85 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setBusy(true);
     if (!hasPassword) {
-      if (password.length < 4) { setError("ERR: Passphrase too short (min 4 chars)"); return; }
-      if (password !== confirmPassword) { setError("ERR: Passphrases do not match"); return; }
+      if (password.length < 4) { setError("ERR: passphrase too short (min 4)"); setBusy(false); return; }
+      if (password !== confirm) { setError("ERR: passphrases do not match"); setBusy(false); return; }
       setPassword(password);
     } else {
       const ok = login(password);
-      if (!ok) setError("ERR: Authentication failed — incorrect passphrase");
+      if (!ok) setError("ERR: authentication failed");
     }
+    setBusy(false);
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen p-6">
-      <div style={{ width: "100%", maxWidth: "440px" }}>
-        {/* Header */}
-        <div className="mb-8" style={{ textAlign: "center" }}>
-          <div style={{ color: "var(--muted)", fontSize: "0.65rem", marginBottom: "1rem", letterSpacing: "0.1em" }}>
-            // SECURE TERMINAL v1.0.0
+    <main style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "1rem" }}>
+      <div style={{ width: "100%", maxWidth: "400px", display: "flex", flexDirection: "column", gap: "24px" }}>
+        
+        {/* Logo block */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ display: "inline-block", marginBottom: "8px" }}>
+            <Logo width={220} />
           </div>
-          <Image src="/logo.png" alt="EdgeLedger" width={220} height={60} style={{ objectFit: "contain", imageRendering: "pixelated", margin: "0 auto", filter: "drop-shadow(0 0 12px rgba(57,255,20,0.4))" }} />
-          <div className="mt-3 text-xs" style={{ color: "var(--muted)" }}>
-            {hasPassword ? (
-              <><span style={{ color: "var(--green)" }}>[LOCKED]</span> — Enter passphrase to authenticate</>
-            ) : (
-              <><span style={{ color: "var(--amber)" }}>[SETUP]</span> — Create a master passphrase</>
-            )}
+          <div style={{ fontSize: "0.65rem", color: "var(--muted)", letterSpacing: "0.12em" }}>
+            // SECURE TERMINAL v1.0.0
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="term-panel">
-          <div className="term-panel-header">
-            <div className="dot" />
-            {hasPassword ? "AUTH REQUIRED" : "INITIAL SETUP"}
+        {/* Auth panel */}
+        <div className="panel">
+          <div className="panel-header">
+            <div className="panel-dot" />
+            {hasPassword ? "AUTH_REQUIRED" : "INIT_VAULT"}
           </div>
-          <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+          <form onSubmit={handleSubmit} style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div>
-              <div className="text-xs mb-1 prompt" style={{ color: "var(--muted)" }}>
+              <div className="prompt" style={{ color: "var(--muted)", fontSize: "0.68rem", marginBottom: "4px" }}>
                 passphrase
               </div>
               <input
                 type="password"
                 required
-                className="term-input w-full"
+                autoFocus
+                className="t-input"
                 placeholder="••••••••"
                 value={password}
-                onChange={e => { setPass(e.target.value); setTyping(true); }}
-                onFocus={() => setTyping(true)}
-                onBlur={() => setTyping(false)}
-                style={{ width: "100%" }}
+                onChange={e => setPass(e.target.value)}
               />
             </div>
+
             {!hasPassword && (
               <div>
-                <div className="text-xs mb-1 prompt" style={{ color: "var(--muted)" }}>
-                  confirm passphrase
+                <div className="prompt" style={{ color: "var(--muted)", fontSize: "0.68rem", marginBottom: "4px" }}>
+                  confirm
                 </div>
                 <input
                   type="password"
                   required
-                  className="term-input w-full"
+                  className="t-input"
                   placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={e => setConfirmPass(e.target.value)}
-                  style={{ width: "100%" }}
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
                 />
               </div>
             )}
+
             {error && (
-              <div style={{ color: "var(--red)", fontSize: "0.75rem", fontFamily: "inherit", padding: "0.5rem", border: "1px solid var(--red)", borderRadius: "4px", background: "rgba(248,113,113,0.05)" }}>
+              <div style={{ fontSize: "0.72rem", color: "var(--red)", padding: "6px 10px", border: "1px solid rgba(248,113,113,0.25)", borderRadius: "3px", background: "rgba(248,113,113,0.05)" }}>
                 {error}
               </div>
             )}
-            <button type="submit" className="term-btn primary" style={{ width: "100%", padding: "0.6rem" }}>
-              {hasPassword ? "$ AUTHENTICATE" : "$ CREATE VAULT"}
-            </button>
-          </div>
-        </form>
 
-        <div className="mt-4 text-xs text-center" style={{ color: "var(--text-dim)" }}>
-          Data stored locally on this device. No cloud services.
+            <button type="submit" disabled={busy} className="t-btn primary" style={{ width: "100%", justifyContent: "center", padding: "8px", fontSize: "0.78rem" }}>
+              {hasPassword ? "$ AUTHENTICATE" : "$ INITIALIZE VAULT"}
+            </button>
+          </form>
+        </div>
+
+        <div style={{ fontSize: "0.6rem", color: "var(--text-dim)", textAlign: "center", letterSpacing: "0.06em" }}>
+          DATA STORED LOCALLY — NO ACCOUNTS, NO CLOUD
         </div>
       </div>
     </main>

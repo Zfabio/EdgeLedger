@@ -3,7 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { LogOut, Plus, Download, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import Logo from "@/components/Logo";
 import { AssetRecord, getAssetRecords } from "@/lib/services";
 import { getSettings, AppSettings } from "@/lib/settings";
 import DataEntryForm from "./DataEntryForm";
@@ -44,43 +44,43 @@ export function Dashboard() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       {/* Top bar */}
-      <header style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", padding: "0.6rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <Image src="/logo.png" alt="EdgeLedger" width={120} height={32} style={{ objectFit: "contain", imageRendering: "pixelated" }} />
-          <span className="term-tag">v1.0</span>
-          <span style={{ fontSize: "0.65rem", color: "var(--muted)" }}>{now}</span>
+      <header style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", padding: "0.6rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, flexWrap: "wrap", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <Logo width={140} />
+          <span className="t-tag hide-mobile">v1.0</span>
+          <span className="hide-mobile" style={{ fontSize: "0.65rem", color: "var(--muted)" }}>{now}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <button onClick={() => { setShowSettings(true); }} className="term-btn" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
-            <Settings size={12} /> CONFIG
+          <button onClick={() => setShowSettings(true)} className="t-btn">
+            <Settings size={12} /> <span className="hide-mobile">CONFIG</span>
           </button>
-          <button onClick={handleExportCSV} className="term-btn" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
-            <Download size={12} /> EXPORT
+          <button onClick={handleExportCSV} className="t-btn">
+            <Download size={12} /> <span className="hide-mobile">EXPORT</span>
           </button>
-          <button onClick={() => setShowForm(true)} className="term-btn primary" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
-            <Plus size={12} /> NEW_RECORD
+          <button onClick={() => setShowForm(true)} className="t-btn primary">
+            <Plus size={12} /> <span className="hide-mobile">NEW_RECORD</span>
           </button>
-          <button onClick={logout} className="term-btn danger" style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.75rem", padding: "0.3rem 0.75rem" }}>
-            <LogOut size={12} /> LOCK
+          <button onClick={logout} className="t-btn danger">
+            <LogOut size={12} /> <span className="hide-mobile">LOCK</span>
           </button>
         </div>
       </header>
 
       {/* Shell info bar */}
-      <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "0.35rem 1.25rem", display: "flex", gap: "1.5rem", fontSize: "0.65rem", color: "var(--muted)" }}>
+      <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "0.4rem 1.25rem", display: "flex", flexWrap: "wrap", gap: "1.5rem", fontSize: "0.68rem", color: "var(--muted)" }}>
         <span><span style={{ color: "var(--green-text)" }}>currency:</span> {settings.currency.symbol} {settings.currency.code}</span>
         <span><span style={{ color: "var(--green-text)" }}>categories:</span> {settings.categories.length}</span>
-        <span><span style={{ color: "var(--green-text)" }}>records:</span> {records.length}</span>
-        <span className="cursor" />
+        <span><span style={{ color: "var(--green-text)" }}>entries:</span> {records.length}</span>
+        <span className="blink">_</span>
       </div>
 
-      {/* Main */}
-      <main style={{ flex: 1, padding: "1.25rem", maxWidth: "1400px", margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {/* Main content grid */}
+      <main style={{ flex: 1, padding: "1.25rem", maxWidth: "1600px", margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
         {records.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "5rem 1rem", color: "var(--muted)", border: "1px solid var(--border)", borderRadius: "4px" }}>
-            <div className="glow-green text-lg mb-3">$ ls records/</div>
-            <div style={{ marginBottom: "1rem", fontSize: "0.85rem" }}>No records found. Initialize your first entry.</div>
-            <button onClick={() => setShowForm(true)} className="term-btn primary">$ init new_record</button>
+          <div style={{ textAlign: "center", padding: "6rem 1rem", border: "1px solid var(--border)", borderRadius: "var(--panel-radius)", background: "var(--bg2)" }}>
+            <div className="glow-green text-lg mb-3" style={{ letterSpacing: "0.1em" }}>$ ls records/</div>
+            <div style={{ marginBottom: "1.5rem", fontSize: "0.85rem", color: "var(--muted)" }}>No filesystem records found. System initialized.</div>
+            <button onClick={() => setShowForm(true)} className="t-btn primary" style={{ padding: "8px 16px" }}>$ init new_entry</button>
           </div>
         ) : (
           <Charts records={records} settings={settings} />
